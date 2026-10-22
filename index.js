@@ -22,7 +22,7 @@ Bun.serve({
         if (url.pathname === "/health") {
             return new Response("OK");
         };
-        if (url.pathname.startsWith("/image/")) return await resize(url);
+        if (url.pathname.startsWith("/image/")) return await resize(url, req.headers.get("accept"));
         return Response.redirect("https://github.com/coollabsio/next-image-transformation", 302);
     }
 });
@@ -34,7 +34,7 @@ function boundedInt(value, fallback, max) {
     return number <= max ? number : null;
 }
 
-async function resize(url) {
+async function resize(url, accept) {
     const src = url.pathname.split("/").slice(2).join("/");
     const origin = new URL(src).hostname;
     const allowed = allowedDomains.filter(domain => {
@@ -61,7 +61,8 @@ async function resize(url) {
         const url = `${imgproxyUrl}/insecure/resize:fill:${width}:${height}/q:${quality}/plain/${src}`
         const image = await fetch(url, {
             headers: {
-                "Accept": "image/avif,image/webp,image/apng,*/*",
+                // The browser's own Accept, so imgproxy only picks AVIF/WebP when the browser can show it.
+                "Accept": accept || "*/*",
             }
         })
         const headers = new Headers(image.headers);
