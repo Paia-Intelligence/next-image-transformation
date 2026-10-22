@@ -28,7 +28,6 @@ Bun.serve({
 });
 
 async function resize(url) {
-    const preset = "pr:sharp"
     const src = url.pathname.split("/").slice(2).join("/");
     const origin = new URL(src).hostname;
     const allowed = allowedDomains.filter(domain => {
@@ -44,7 +43,10 @@ async function resize(url) {
     const height = url.searchParams.get("height") || 0;
     const quality = url.searchParams.get("quality") || 75;
     try {
-        const url = `${imgproxyUrl}/${preset}/resize:fill:${width}:${height}/q:${quality}/plain/${src}`
+        // imgproxy always expects a signature segment; "insecure" is accepted while URL signing is off.
+        // Upstream put the "pr:sharp" preset there, so older imgproxy read it as the signature (and never
+        // applied it) and current imgproxy rejects the URL.
+        const url = `${imgproxyUrl}/insecure/resize:fill:${width}:${height}/q:${quality}/plain/${src}`
         const image = await fetch(url, {
             headers: {
                 "Accept": "image/avif,image/webp,image/apng,*/*",
@@ -52,7 +54,9 @@ async function resize(url) {
         })
         const headers = new Headers(image.headers);
         headers.set("Server", "NextImageTransformation");
+        // Pass imgproxy's status through so errors are not served (and cached) as 200.
         return new Response(image.body, {
+            status: image.status,
             headers
         })
     } catch (e) {
