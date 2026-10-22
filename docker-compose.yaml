@@ -21,7 +21,9 @@ services:
     image: darthsim/imgproxy:v3.31.4
     environment:
       - IMGPROXY_ENABLE_WEBP_DETECTION=true
-      - IMGPROXY_ENABLE_AVIF_DETECTION=true
+      # Off on purpose: at the app's quality 60/75, AVIF came out 1.4-2.9x larger than WebP
+      # and slower to encode (measured 2026-10-22).
+      - IMGPROXY_ENABLE_AVIF_DETECTION=false
       - IMGPROXY_JPEG_PROGRESSIVE=true
       - IMGPROXY_USE_ETAG=true
       # Never fetch from internal networks, even if an allowed host redirects there.
