@@ -1,29 +1,35 @@
+# Deployed by Coolify (Docker Compose build pack): Coolify builds the transformer from this repo
+# on the server, so no registry or pull credentials are needed.
 services:
-  api:
-    image: ghcr.io/coollabsio/next-image-transformation
-    ports:
-      - "3000"
+  transformation:
+    build: .
     environment:
       - NODE_ENV=production
-      - ALLOWED_REMOTE_DOMAINS=*
+      # Source hosts seen in 7 days of real traffic plus the hosts in LariaWebsite next.config.mjs.
+      - ALLOWED_REMOTE_DOMAINS=${ALLOWED_REMOTE_DOMAINS:-app.laria.ai,kaufland.laria.ai,dev.laria.ai,kauflanddev.laria.ai,backend.laria.ai,mhtexekmxnykdjatmtkd.supabase.co,jdfdcxtkmntgsnlajwtv.supabase.co,images.pexels.com,cdn.pixabay.com,www.shutterstock.com}
       - IMGPROXY_URL=http://imgproxy:8080
     healthcheck:
-      test: "wget -qO- http://localhost:3000/health || exit 1"
-      interval: 2s
-      timeout: 10s
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
       retries: 5
     depends_on:
       imgproxy:
         condition: service_healthy
   imgproxy:
-    image: darthsim/imgproxy
+    # imgproxy 4 renamed the format-detection settings; move deliberately.
+    image: darthsim/imgproxy:v3.31.4
     environment:
       - IMGPROXY_ENABLE_WEBP_DETECTION=true
       - IMGPROXY_ENABLE_AVIF_DETECTION=true
       - IMGPROXY_JPEG_PROGRESSIVE=true
       - IMGPROXY_USE_ETAG=true
+      # Never fetch from internal networks, even if an allowed host redirects there.
+      - IMGPROXY_ALLOW_PRIVATE_SOURCE_ADDRESSES=false
+      - IMGPROXY_ALLOW_LOOPBACK_SOURCE_ADDRESSES=false
+      - IMGPROXY_ALLOW_LINK_LOCAL_SOURCE_ADDRESSES=false
     healthcheck:
-      test: [ "CMD", "imgproxy", "health" ]
-      interval: 2s
-      timeout: 10s
+      test: ["CMD", "imgproxy", "health"]
+      interval: 10s
+      timeout: 5s
       retries: 5
