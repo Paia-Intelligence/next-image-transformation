@@ -27,6 +27,13 @@ Bun.serve({
     }
 });
 
+function boundedInt(value, fallback, max) {
+    if (value === null || value === "") return fallback;
+    if (!/^\d{1,5}$/.test(value)) return null;
+    const number = Number(value);
+    return number <= max ? number : null;
+}
+
 async function resize(url) {
     const src = url.pathname.split("/").slice(2).join("/");
     const origin = new URL(src).hostname;
@@ -39,9 +46,14 @@ async function resize(url) {
     if (allowed.length === 0) {
         return new Response(`Domain (${origin}) not allowed. More details here: https://github.com/coollabsio/next-image-transformation`, { status: 403 });
     }
-    const width = url.searchParams.get("width") || 0;
-    const height = url.searchParams.get("height") || 0;
-    const quality = url.searchParams.get("quality") || 75;
+    // These go into the imgproxy path, so anything but a bounded integer could inject processing
+    // options or a second source URL past the domain allowlist.
+    const width = boundedInt(url.searchParams.get("width"), 0, 8192);
+    const height = boundedInt(url.searchParams.get("height"), 0, 8192);
+    const quality = boundedInt(url.searchParams.get("quality"), 75, 100);
+    if (width === null || height === null || quality === null) {
+        return new Response("width, height and quality must be integers", { status: 400 });
+    }
     try {
         // imgproxy always expects a signature segment; "insecure" is accepted while URL signing is off.
         // Upstream put the "pr:sharp" preset there, so older imgproxy read it as the signature (and never
